@@ -1,0 +1,186 @@
+<!DOCTYPE html><html>
+<head>
+  <meta charset="UTF-8">
+  <title>Game Ular</title>
+  <style>
+    canvas {
+      background: #000;
+      display: block;
+      margin: 0 auto;
+      border: 4px #000;
+    }
+    #controls, #colorPicker {
+      text-align: center;
+      margin-top: 10px;
+    }
+    button {
+      margin: 3px;
+      padding: 15px 12px;
+      font-size: 15px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" width="400" height="400"></canvas>
+  <div id="colorPicker">
+    <button onclick="changeColor('#00FF00')">Hijau</button>
+    <button onclick="changeColor('#FF0000')">Merah</button>
+    <button onclick="changeColor('#0000FF')">Biru</button>
+    <button onclick="changeColor('#FFFF00')">Kuning</button>
+    <button onclick="changeColor('#FFFFFF')">Putih</button>
+    <button onclick="changeColor('#8B4513')">Coklat</button>
+  </div>
+  <div id="controls">
+    <button onclick="setDirection('left')">◀⬅️</button>
+    <button onclick="setDirection('up')">⬆️</button>
+    <button onclick="setDirection('down')">⬇️</button>
+    <button onclick="setDirection('right')">▶➡️</button>
+  </div>  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const grid = 20;
+    const count = 12; // Lebih pelan seperti Nokia (semakin besar, semakin lambat)
+
+    let snake = { x: 160, y: 160, dx: grid, dy: 0, cells: [], maxCells: 4 };
+    let enemySnake = { x: 0, y: 0, dx: grid, dy: 0, cells: [], maxCells: 4 };
+
+    let apple = { x: 320, y: 320 };
+    let score = 0;
+    let highScore = localStorage.getItem('highScore') || 0;
+    let snakeColor = localStorage.getItem('snakeColor') || '#00FF00';
+    let music = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
+    music.loop = true;
+    let eatSound = new Audio('https://www.fesliyanstudios.com/play-mp3/387');
+    let gameOverSound = new Audio('https://www.fesliyanstudios.com/play-mp3/6676');
+    music.volume = 0.2;
+    music.play();
+
+    function changeColor(color) {
+      snakeColor = color;
+      localStorage.setItem('snakeColor', color);
+    }
+
+    function setDirection(dir) {
+      if (dir === 'left' && snake.dx === 0) { snake.dx = -grid; snake.dy = 0; }
+      else if (dir === 'up' && snake.dy === 0) { snake.dy = -grid; snake.dx = 0; }
+      else if (dir === 'down' && snake.dy === 0) { snake.dy = grid; snake.dx = 0; }
+      else if (dir === 'right' && snake.dx === 0) { snake.dx = grid; snake.dy = 0; }
+    }
+
+    function resetGame() {
+      snake.x = 160;
+      snake.y = 160;
+      snake.cells = [];
+      snake.maxCells = 4;
+      snake.dx = grid;
+      snake.dy = 0;
+      score = 0;
+
+      enemySnake.x = 0;
+      enemySnake.y = 0;
+      enemySnake.cells = [];
+      enemySnake.maxCells = 4;
+      enemySnake.dx = grid;
+      enemySnake.dy = 0;
+    }
+
+    function getRandomInt(min, max) {
+      return Math.floor(Math.random() * (max - min)) + min;
+    }
+
+    function updateEnemy() {
+      // acak arah
+      if (Math.random() < 0.1) {
+        const directions = [
+          { dx: grid, dy: 0 },
+          { dx: -grid, dy: 0 },
+          { dx: 0, dy: grid },
+          { dx: 0, dy: -grid },
+        ];
+        let dir = directions[getRandomInt(0, directions.length)];
+        enemySnake.dx = dir.dx;
+        enemySnake.dy = dir.dy;
+      }
+    }
+
+    let countFrame = 0;
+    function loop() {
+      requestAnimationFrame(loop);
+      if (++countFrame < count) return;
+      countFrame = 0;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      snake.x += snake.dx;
+      snake.y += snake.dy;
+      enemySnake.x += enemySnake.dx;
+      enemySnake.y += enemySnake.dy;
+
+      if (snake.x < 0 || snake.x >= canvas.width || snake.y < 0 || snake.y >= canvas.height) {
+        gameOverSound.play();
+        if (score > highScore) {
+          highScore = score;
+          localStorage.setItem('highScore', highScore);
+        }
+        alert(`Game Over☠️ Skor: ${score} | High Score: ${highScore}`);
+        resetGame();
+      }
+
+      updateEnemy();
+
+      snake.cells.unshift({ x: snake.x, y: snake.y });
+      if (snake.cells.length > snake.maxCells) snake.cells.pop();
+
+      enemySnake.cells.unshift({ x: enemySnake.x, y: enemySnake.y });
+      if (enemySnake.cells.length > enemySnake.maxCells) enemySnake.cells.pop();
+
+      ctx.fillStyle = snakeColor;
+      snake.cells.forEach(cell => ctx.fillRect(cell.x, cell.y, grid - 1, grid - 1));
+
+      ctx.fillStyle = '#FFA500';
+      enemySnake.cells.forEach(cell => ctx.fillRect(cell.x, cell.y, grid - 1, grid - 1));
+
+      ctx.fillStyle = 'red';
+      ctx.fillRect(apple.x, apple.y, grid - 1, grid - 1);
+
+      if (snake.x === apple.x && snake.y === apple.y) {
+        eatSound.play();
+        snake.maxCells++;
+        score++;
+        apple.x = getRandomInt(0, 20) * grid;
+        apple.y = getRandomInt(0, 20) * grid;
+      }
+
+      for (let i = 1; i < snake.cells.length; i++) {
+        if (snake.cells[i].x === snake.x && snake.cells[i].y === snake.y) {
+          gameOverSound.play();
+          if (score > highScore) {
+            highScore = score;
+            localStorage.setItem('highScore', highScore);
+          }
+          alert(`Game Over! Skor: ${score} | High Score: ${highScore}`);
+          resetGame();
+        }
+      }
+
+      for (let cell of enemySnake.cells) {
+        if (snake.x === cell.x && snake.y === cell.y) {
+          gameOverSound.play();
+          if (score > highScore) {
+            highScore = score;
+            localStorage.setItem('highScore', highScore);
+          }
+          alert(`Game Over☠️ Tabrak Musuh! Skor: ${score} | High Score: ${highScore}`);
+          resetGame();
+        }
+      }
+
+      ctx.fillStyle = '#FFF';
+      ctx.font = '16px Arial';
+      ctx.fillText('Skor: ' + score, 10, 20);
+      ctx.fillText('High Score: ' + highScore, 10, 40);
+    }
+
+    requestAnimationFrame(loop);
+  </script></body>
+</html>
